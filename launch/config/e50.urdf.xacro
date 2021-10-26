@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<robot name="wloam" xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <xacro:property name="PI" value="3.1415926535897931" />
+    <link name="base_link"></link>
+    <link name="lidar_link"></link>
+    <link name="imu_link"></link>
+    <link name="gps_link"></link>
+    <link name="rslidar"></link>
+
+    <joint name="lidar_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="lidar_link" />
+        <origin xyz="0.80265 -0.0244726 1.7823" rpy="0 0.000567994 0.0198654" />
+    </joint>
+
+    <joint name="imu_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="imu_link" />
+        <origin xyz="0 0 0" rpy="0 0 0.004" />
+    </joint>
+
+    <joint name="gps_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="gps_link" />
+        <origin xyz="0 0 0" rpy="0 0 0.004" />  
+    </joint>
+
+    <joint name="rslidar_joint" type="fixed">
+        <parent link="lidar_link" />
+        <child link="rslidar" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
+    </joint>
+</robot>

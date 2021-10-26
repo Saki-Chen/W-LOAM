@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>wloam</name>
+  <version>0.0.0</version>
+  <description>The wloam package</description>
+  <maintainer email="610139231@qq.com">saki-chen</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>message_generation</build_depend>
+  <build_depend>eigen_conversions</build_depend>
+  <build_depend>gps_common</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>nav_msgs</build_depend>
+  <build_depend>apa_msgs</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>tf_conversions</build_depend>
+  <build_depend>visualization_msgs</build_depend>
+
+  <exec_depend>message_runtime</exec_depend>
+  <exec_depend>eigen_conversions</exec_depend>
+  <exec_depend>gps_common</exec_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>apa_msgs</exec_depend>
+  <exec_depend>tf</exec_depend>
+  <exec_depend>tf_conversions</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+  
+</package>

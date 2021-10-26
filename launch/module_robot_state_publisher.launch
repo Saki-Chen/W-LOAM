@@ -1,0 +1,5 @@
+<launch>
+    <arg name="description_file_path" default="$(find wloam)/launch/config/e50.urdf.xacro" /> 
+    <param name="robot_description" command="$(find xacro)/xacro $(arg description_file_path)" />
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" />
+</launch>

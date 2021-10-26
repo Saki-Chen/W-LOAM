@@ -1,0 +1,30 @@
+{
+   "wheel_base": 2.305,
+   "front_wheel_radius": 0.2585,
+   "rear_wheel_radius": 0.2590,
+   "front_wheel_track": 1.324,
+   "rear_wheel_track": 1.292,
+   "front_wheel_count_full": 40,
+   "rear_wheel_count_full":48,
+   "rear_overhang":0.544,
+   "width":1.551,
+   "length":3.569,
+   "count_period": 65536,
+   "enable_vec_fl_fr_rl_rr":[1,1,1,1],
+   "steering_angle_forward": [
+      -529,
+      529
+   ],
+   "steering_angle_backward": [
+      -529,
+      529
+   ],
+   "curvature_forward": [
+      -0.28,
+      0.28
+   ],
+   "curvature_backward": [
+      -0.28,
+      0.28
+   ]
+}

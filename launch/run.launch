@@ -1,0 +1,129 @@
+<launch>
+
+    <arg name="simulation" default="false" />
+    <arg name="enable_gps" default="false" />
+    <arg name="enable_fused_odom" default="false" />
+    <arg name="odometry_link" default="base_link" />
+    <arg name="cloud_format" default="robosense" />
+    <arg name="robot_name" default="e50" />
+    <arg name="laser_topic" default="velodyne_points" />
+    <arg name="imu_topic" default="imu/data" />
+   
+    <param name="use_sim_time" type="bool" value="$(arg simulation)"/>
+    <param name="odometer_link" type="string" value="$(arg odometry_link)" />
+    <param name="meta_vehilce_file_path" type="string" value="$(find wloam)/vehicle_params/E50.json" />
+
+    <remap from="imu/data" to="$(arg imu_topic)" />
+    
+    <node pkg="wloam" type="odometry_publisher" name="odometry_publisher_local_base" respawn="true" output="log" >
+        <param name="correction_target_frame" type="string" value="local_map" />
+        <param name="correction_source_frame" type="string" value="odom" />
+        <param name="offset_target_frame" type="string" value="$(arg odometry_link)" />
+        <param name="offset_source_frame" type="string" value="base_link" />
+    </node>
+
+    <node pkg="wloam" type="odometry_publisher" name="odometry_publisher_earth_lidar" respawn="true" output="log" >
+        <param name="correction_target_frame" type="string" value="earth" />
+        <param name="correction_source_frame" type="string" value="odom" />
+        <param name="offset_target_frame" type="string" value="$(arg odometry_link)" />
+        <param name="offset_source_frame" type="string" value="gps_link" />
+    </node>
+    
+    <group>
+
+        <node pkg="wloam" type="points_converter" name="points_converter" required="true" output="screen" >
+            <param name="points_topic" type="string" value="$(arg laser_topic)" />
+            <param name="cloud_msg_format" type="string" value="$(arg cloud_format)" />
+            <param name="re_sort" type="bool" value="true" />
+        </node>
+
+        <node pkg="wloam" type="DeadReckoning" name="DeadReckoning" output="screen" required="true">
+            <param name="sliding_window_len" type="double" value="0.5" />
+        </node>
+       
+        <node if="$(eval odometry_link=='imu_link' and not enable_fused_odom)" pkg="wloam" type="imuOdometry_fix_lag" name="imuOdometry" output="screen" required="true" >
+            <param name="prior_velocity_noise" type="double" value="10" />
+            <param name="prior_acc_bias_noise" type="double" value="0.05" />
+            <param name="prior_gyro_bias_noise" type="double" value="0.002" />
+            <param name="prior_roll_pitch_noise" type="double" value="0.05" />
+            <param name="lidar_translation_inc_noise" type="double" value="0.001" />
+            <param name="lidar_rotation_inc_noise" type="double" value="0.00349" />
+            <param name="acc_noise" type="double" value="0.1" />
+            <param name="gyro_noise" type="double" value="0.01" />
+            <param name="integration_noise" type="double" value="0.0001" />
+            <param name="acc_drift_per_sec" type="double" value="0.01" />
+            <param name="gyro_drift_per_sec" type="double" value="0.00017" />
+            <param name="reset_period" type="double" value="8" />
+            <param name="gravity" type="double" value="9.8099" />
+            <param name="re_calibrate_gravity" type="bool" value="false" />
+        </node>
+
+        <node if="$(eval odometry_link=='imu_link' and enable_fused_odom)" pkg="wloam" type="fusedOdometry" name="fusedOdometry" output="screen" required="true" >
+            <param name="prior_velocity_noise" type="double" value="10" />
+            <param name="prior_acc_bias_noise" type="double" value="0.05" />
+            <param name="prior_gyro_bias_noise" type="double" value="0.002" />
+            <param name="prior_roll_pitch_noise" type="double" value="0.05" />
+            <param name="lidar_translation_inc_noise" type="double" value="0.001" />
+            <param name="lidar_rotation_inc_noise" type="double" value="0.00349" />
+            <param name="acc_noise" type="double" value="0.1" />
+            <param name="gyro_noise" type="double" value="0.01" />
+            <param name="integration_noise" type="double" value="0.0001" />
+            <param name="acc_drift_per_sec" type="double" value="0.01" />
+            <param name="gyro_drift_per_sec" type="double" value="0.00017" />
+            <param name="reset_period" type="double" value="8" />
+            <param name="gravity" type="double" value="9.8099" />
+        </node>
+
+        <node pkg="wloam" type="scanExtraction" name="scanExtraction" output="screen" required="true" >
+            <param name="smooth_threshold_deg" type="double" value="56.0" />
+            <param name="sharp_threshold_deg" type="double" value="57.0" />
+            <param name="neighbor_search_radius" type="int" value="5" />
+            <param name="angle_diff_threshold" type="double" value="6" />
+            <param name="distance_diff_threshold" type="double" value="2" />
+            <param name="enable_deskew" type="bool" value="true" />
+            <param name="min_point_dist" type="double" value="1" />
+            <param name="odometer_link" type="string" value="$(arg odometry_link)" />
+        </node>
+
+        <node pkg="wloam" type="ApaMapping" name="ApaMapping" output="screen" required="true" >
+            <param name="enable_global_optimize" type="bool" value="true" />
+            <param name="enable_loop_closure" type="bool" value="true" />
+            <param name="enable_gps_factor" type="bool" value="$(arg enable_gps)" />
+            <param name="key_frame_res_local" type="double" value="3" />
+            <param name="local_map_scale" type="double" value="20" />
+            <param name="key_frame_res_global" type="double" value="5" />
+            <param name="neighbor_range_for_loop" type="int" value="7" />
+            <param name="loop_closure_search_radius" type="double" value= "20" />
+            <param name="icp_fit_score_threshold" type="double" value="0.3" />
+            <param name="min_feature_count" type="int" value ="20" />
+            <param name="local_sampling_rate" type="double" value="2" />
+            <param name="global_sampling_rate" type="double" value="2" />
+            <param name="edge_constraint_noise_threshold" type="double" value="0.3" />
+            <param name="plane_constraint_noise_threshold" type="double" value="0.05" />
+            <param name="use_degenerate_feature" type="bool" value="true" />
+            <param name="min_noise_prior" type="double" value="0.02" />
+            <param name="gps_noise_xy" type="double" value="5" />
+            <param name="gps_noise_z" type="double" value="20" />
+            <param name="export_path" type="string" value="/tmp" />
+            <param name="save_path" type="bool" value="false" />
+            <param name="save_map" type="bool" value="false" />
+            <param name="save_feature_map" type="bool" value="false" />
+            <rosparam param="prior_between_noise">[0.01, 0.01, 0.01, 0.01, 0.01, 0.01]</rosparam>
+            <rosparam param="local_map_resolution_corner_surf_full">[0.25, 0.5, 0.5]</rosparam>
+            <rosparam param="global_map_resolution_corner_surf_full">[0.5, 1, 0.5]</rosparam>
+        </node>
+        
+        <node pkg="wloam" type="visualization" name="visualize_path" respawn="true" output="log" />
+    </group>
+
+        <node if="$(arg enable_gps)"  pkg="wloam" type="gps_odom_publisher" name="gps_odom_publisher" output="screen" >
+            <param name="gps_status_filter" type="int" value="-1" />
+            <rosparam param="datum">[-1, -1, -1]</rosparam>
+        </node> 
+
+
+    <include file="$(find wloam)/launch/module_robot_state_publisher.launch" >
+        <arg name="description_file_path" value="$(find wloam)/launch/config/$(arg robot_name).urdf.xacro" />
+    </include>
+
+</launch>

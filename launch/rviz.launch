@@ -1,0 +1,11 @@
+<launch>
+
+    <!-- <arg name="enable_graph_rviz_plugin" default="false" />
+    <group if="$(arg enable_graph_rviz_plugin)" ns="graph_rviz_plugin" >
+        <node pkg="graph_rviz_plugin" type="subtopic_repub.py" name="repub_yaw_rate" respawn="true" args="/extra_odom_info/yaw_rate yaw_rate" />
+        <node pkg="graph_rviz_plugin" type="subtopic_repub.py" name="repub_linear_speed" respawn="true" args="/extra_odom_info/linear_speed linear_speed" />
+    </group> -->
+
+    <node pkg="rviz" type="rviz" name="rviz_for_parking" respawn="true" args="-d $(find wloam)/rviz_cfg/with_graph.rviz" />
+
+</launch>

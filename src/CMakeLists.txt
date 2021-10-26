@@ -1,0 +1,5 @@
+include_directories(include)
+add_subdirectory(convertion)
+add_subdirectory(odometry)
+add_subdirectory(mapping)
+add_subdirectory(tools)
