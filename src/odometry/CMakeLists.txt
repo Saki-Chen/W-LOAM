@@ -5,7 +5,3 @@ add_dependencies(DeadReckoning ${catkin_EXPORTED_TARGETS})
 add_executable(imuOdometry_fix_lag imuOdometry_fix_lag.cpp)
 target_link_libraries(imuOdometry_fix_lag gtsam gtsam_unstable ${catkin_LIBRARIES})
 add_dependencies(DeadReckoning ${catkin_EXPORTED_TARGETS})
-
-add_executable(fusedOdometry fusedOdometry.cpp)
-target_link_libraries(fusedOdometry gtsam gtsam_unstable ${catkin_LIBRARIES})
-add_dependencies(DeadReckoning ${catkin_EXPORTED_TARGETS})

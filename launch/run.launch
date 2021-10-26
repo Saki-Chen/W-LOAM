@@ -2,7 +2,6 @@
 
     <arg name="simulation" default="false" />
     <arg name="enable_gps" default="false" />
-    <arg name="enable_fused_odom" default="false" />
     <arg name="odometry_link" default="base_link" />
     <arg name="cloud_format" default="robosense" />
     <arg name="robot_name" default="e50" />
@@ -41,7 +40,7 @@
             <param name="sliding_window_len" type="double" value="0.5" />
         </node>
        
-        <node if="$(eval odometry_link=='imu_link' and not enable_fused_odom)" pkg="wloam" type="imuOdometry_fix_lag" name="imuOdometry" output="screen" required="true" >
+        <node if="$(eval odometry_link=='imu_link')" pkg="wloam" type="imuOdometry_fix_lag" name="imuOdometry" output="screen" required="true" >
             <param name="prior_velocity_noise" type="double" value="10" />
             <param name="prior_acc_bias_noise" type="double" value="0.05" />
             <param name="prior_gyro_bias_noise" type="double" value="0.002" />
@@ -56,22 +55,6 @@
             <param name="reset_period" type="double" value="8" />
             <param name="gravity" type="double" value="9.8099" />
             <param name="re_calibrate_gravity" type="bool" value="false" />
-        </node>
-
-        <node if="$(eval odometry_link=='imu_link' and enable_fused_odom)" pkg="wloam" type="fusedOdometry" name="fusedOdometry" output="screen" required="true" >
-            <param name="prior_velocity_noise" type="double" value="10" />
-            <param name="prior_acc_bias_noise" type="double" value="0.05" />
-            <param name="prior_gyro_bias_noise" type="double" value="0.002" />
-            <param name="prior_roll_pitch_noise" type="double" value="0.05" />
-            <param name="lidar_translation_inc_noise" type="double" value="0.001" />
-            <param name="lidar_rotation_inc_noise" type="double" value="0.00349" />
-            <param name="acc_noise" type="double" value="0.1" />
-            <param name="gyro_noise" type="double" value="0.01" />
-            <param name="integration_noise" type="double" value="0.0001" />
-            <param name="acc_drift_per_sec" type="double" value="0.01" />
-            <param name="gyro_drift_per_sec" type="double" value="0.00017" />
-            <param name="reset_period" type="double" value="8" />
-            <param name="gravity" type="double" value="9.8099" />
         </node>
 
         <node pkg="wloam" type="scanExtraction" name="scanExtraction" output="screen" required="true" >
