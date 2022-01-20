@@ -292,7 +292,6 @@ public:
 
         _total_accumulated_dist += dist;
 
-        _filter.setMinimumPointsNumberPerVoxel(1);
         if (_cur_accumulated_dist < _key_frame_res_local)
             _cur_accumulated_dist += dist;
         else if (!_key_frame_history[_cur_key_frame_ind]->empty())
@@ -300,13 +299,13 @@ public:
             _cur_accumulated_dist = 0;
             _cur_key_frame_ind = (_cur_key_frame_ind + 1) % _key_frame_history.size();
             _key_frame_history[_cur_key_frame_ind]->clear();
-            // _local_map->clear();
+            _local_map->clear();
             const auto size = _key_frame_history.size();
             for (int i = 1; i < size; ++i)
             {
                 _local_map->combine(*_key_frame_history[(_cur_key_frame_ind + i) % size], nullptr, true);
             }
-            _filter.setMinimumPointsNumberPerVoxel(2);
+
         }
 
         _local_map->combine(*new_node, nullptr, true);
@@ -315,7 +314,7 @@ public:
         apply_filter_in_place(_filter, _surf_leaf_size, _local_map->FlatPoints, points_ds_cur);
         apply_filter_in_place(_filter, _full_leaf_size, _local_map->FullPoints, points_ds_cur);
 
-        _filter.setMinimumPointsNumberPerVoxel(1);
+        // _filter.setMinimumPointsNumberPerVoxel(1);
         _key_frame_history[_cur_key_frame_ind]->combine(*new_node, nullptr, true);
 
         apply_filter_in_place(_filter, _corner_leaf_size, _key_frame_history[_cur_key_frame_ind]->SharpPoints, points_ds_history);
@@ -566,7 +565,7 @@ private:
         ros::NodeHandle nh;
         ros::Rate rate_100(100);
         pcl::VoxelGrid<PointType> filter;
-        std::deque<MapNode::Ptr> recycled;
+
         bool delay_set_degenerate = false;
         while (nh.ok())
         {
@@ -581,19 +580,8 @@ private:
             _msg_buf.pop_front();
             _mBuf.unlock();
 
-            MapNode::Ptr new_node;
-            if(recycled.size() > 16 && recycled.front().use_count() < 2)
-            {
-                new_node.swap(recycled.front());
-                new_node->clear();
-                recycled.pop_front();
-                // ROS_INFO("use recycled, size: %d", recycled.size());
-            }   
-            else
-            {
-                new_node = std::make_shared<MapNode>();
-                // ROS_INFO("make new");
-            }
+            auto new_node = std::make_shared<MapNode>();
+
             new_node->set_data(msg);
             const auto T_odom_lidar = new_node->Pose;
             _assosiate_transform(new_node->Pose, T_local_map_odom);
@@ -613,9 +601,6 @@ private:
 
                 _pub_local_optimized_result(new_node);
 
-                if (!_enable_global_optimize)
-                    _pub_map_without_global_optimize(new_node);
-
                 _local_map.update(new_node);
 
                 if(!delay_set_degenerate && _local_map.distance() > 5)
@@ -624,11 +609,7 @@ private:
                     _use_degenerate_feature.store(ros::NodeHandle("~").param<bool>("use_degenerate_feature", false), std::memory_order_relaxed); 
                 }
 
-                recycled.push_back(new_node);
-                if(recycled.size() > 32)
-                {
-                    recycled.pop_front();
-                }
+
                 if (_enable_global_optimize)
                 {
                     _send_key_frame(new_node);
@@ -1273,12 +1254,13 @@ private:
         static MapNode target_to_align;
         static CloudType aligned_cloud;
 
-        double max_correspond_dist = _loop_closure_search_radius;
-        icp.setMaxCorrespondenceDistance(max_correspond_dist);
+        // double max_correspond_dist = _loop_closure_search_radius;
+        // icp.setMaxCorrespondenceDistance(max_correspond_dist);
         icp.setMaximumIterations(100);
         icp.setTransformationEpsilon(1e-6);
-        icp.setEuclideanFitnessEpsilon(1e-6);
+        icp.setEuclideanFitnessEpsilon(1e-2);
         icp.setRANSACIterations(0);
+        icp.setUseReciprocalCorrespondences(true);
 
         target_to_align.clear();
         target_to_align.Pose = node_pre->Pose;
@@ -1310,7 +1292,7 @@ private:
         aligned_cloud.clear();
         icp.align(aligned_cloud, rel_pose.matrix().cast<float>());
         rel_pose = icp.getFinalTransformation().cast<double>();
-        double fit_score = icp.getFitnessScore(max_correspond_dist);
+        double fit_score = icp.getFitnessScore(16.0);
         ROS_INFO("icp fitness score: %f", fit_score);
 
         if (_pub_icp_registered_frame.getNumSubscribers() > 0)
@@ -1318,6 +1300,11 @@ private:
             for (auto &p : aligned_cloud)
             {
                 p.intensity = 128;
+            }
+
+            for(auto &p : *target_to_align.FullPoints)
+            {
+                p.intensity = 0;
             }
             aligned_cloud += *target_to_align.FullPoints;
             pcl::transformPointCloud(aligned_cloud, aligned_cloud, node_pre->Pose.matrix());
@@ -1360,7 +1347,8 @@ private:
 
             const auto sigma = std::sqrt(eigen_val[0] * eigen_val[0] + eigen_val[1] * eigen_val[1]);
 
-            if (_use_degenerate_feature.load(std::memory_order_relaxed) && eigen_val[0] < _plane_noise_threshold && eigen_val[1] * 3 > _corner_leaf_size_local && eigen_val[2] * 3 > _corner_leaf_size_local)
+            // 85 deg
+            if (_use_degenerate_feature.load(std::memory_order_relaxed) && eigen_val[0] < _plane_noise_threshold && eigen_val[1] * 3 > _corner_leaf_size_local && eigen_val[2] * 3 > _corner_leaf_size_local && std::abs(center.normalized().dot(saes.eigenvectors().col(0).normalized())) > std::cos(M_PI*17.0/36.0))
             {
                 FactorParam param;
                 param.col(0) = center;
@@ -1370,7 +1358,7 @@ private:
                 // param.col(3)[0] = std::max(eigen_val[0] + _plane_noise_threshold, _min_noise_prior);
                 params_degenerate.push_back(param);
             }
-            else if (sigma < _edge_noise_threshold)
+            else if (sigma < _edge_noise_threshold && 1.5 * sigma < eigen_val[2])
             {
                 FactorParam param;
                 param.col(0) = center;
@@ -1793,7 +1781,7 @@ private:
     std::string _saving_path;
     double _key_frame_res_global;
     double _loop_closure_search_radius;
-    double _min_feature_count;
+    int _min_feature_count;
     double _icp_fit_score_threshold;
     Pose3Covariance _prior_between_noise;
 

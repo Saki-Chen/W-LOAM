@@ -20,6 +20,7 @@ public:
     {
         UNKOWN,
         VELODYNE,
+        OUSTER,
         ROBOSENSE
     };
     using Format = PointCloud2Converter::Format;
@@ -33,6 +34,9 @@ public:
         {
         case VELODYNE:
             _convert_velodyne(msg, cloud);
+            break;
+        case OUSTER:
+            _convert_ouster(msg, cloud);
             break;
         case ROBOSENSE:
             _convert_robosense(msg, cloud);
@@ -62,6 +66,27 @@ private:
         cloud.resize(j);
     }
 
+    template <typename PointT>
+    void remove_bad_points(pcl::PointCloud<PointT> &cloud) const
+    {
+        size_t i = 0;
+        for(const auto &p : cloud)
+        {
+            if(!(std::isfinite(p.x) && std::isfinite(p.y) && std::isfinite(p.z))) continue;
+            if(p.x * p.x + p.y * p.y + p.z * p.z == 0.0) continue;
+            cloud[i++] = p;
+        }
+
+        if(i != cloud.size())
+        {
+            cloud.resize(i);
+        }
+
+        cloud.is_dense = true;
+        cloud.height = 1;
+        cloud.width = static_cast<uint32_t>(i);
+    }    
+
     void _fix_timestamp(ros::Time &stamp, CloudType &cloud) const
     {
         float rel_t0 = std::min_element(cloud.begin(), cloud.end(), [](const CloudType::PointType&u, const CloudType::PointType& v){return u.rel_time < v.rel_time;})->rel_time;
@@ -76,9 +101,7 @@ private:
     void _convert_default(const sensor_msgs::PointCloud2ConstPtr &msg, CloudType &cloud) const
     {
         pcl::fromROSMsg(*msg, cloud);
-        std::vector<int> index;
-        cloud.is_dense = false;
-        pcl::removeNaNFromPointCloud(cloud, cloud, index);
+        remove_bad_points(cloud);
     }
 
     void _convert_velodyne(const sensor_msgs::PointCloud2ConstPtr &msg, CloudType &cloud) const
@@ -86,14 +109,29 @@ private:
         _convert_default(msg, cloud);
     }
 
+    void _convert_ouster(const sensor_msgs::PointCloud2ConstPtr &msg, CloudType &cloud) const
+    {
+        pcl::PointCloud<wloam::OusterPoint> os_cloud;
+        pcl::fromROSMsg(*msg, os_cloud);
+        remove_bad_points(os_cloud);
+        _copy_meta_and_resize(os_cloud, cloud);
+        const auto size = os_cloud.size();
+        for(int i = 0; i < size; ++i)
+        {
+            const auto& p_in = os_cloud[i];
+            auto& p_out = cloud[i];
+            _copy_xyzi(p_in, p_out);
+            p_out.ring = p_in.ring;
+            p_out.rel_time = p_in.t * 1e-9;
+        }
+    }
+
     void _convert_robosense(const sensor_msgs::PointCloud2ConstPtr &msg, CloudType &cloud) const
     {
-        static pcl::PointCloud<wloam::RsPointXYZIRT> rs_cloud;
+        pcl::PointCloud<wloam::RsPointXYZIRT> rs_cloud;
         pcl::fromROSMsg(*msg, rs_cloud);
-        std::vector<int> index;
-        cloud.is_dense = false;
-        pcl::removeNaNFromPointCloud(rs_cloud, rs_cloud, index);
-        _copy_and_resize(rs_cloud, cloud);
+        remove_bad_points(rs_cloud);
+        _copy_meta_and_resize(rs_cloud, cloud);
         const auto size = rs_cloud.size();
         const double t_base = msg->header.stamp.toSec();
         for (int i = 0; i < size; ++i)
@@ -116,7 +154,7 @@ private:
     }
 
     template <typename T>
-    void _copy_and_resize(const T &in, CloudType &out) const
+    void _copy_meta_and_resize(const T &in, CloudType &out) const
     {
         out.header = in.header;
         out.width = in.width;
@@ -167,6 +205,8 @@ int main(int argc, char**argv)
         ROS_INFO("disable re_sort");
     if (cloud_msg_format == "velodyne")
         converter.setFormat(PointCloud2Converter::Format::VELODYNE);
+    else if (cloud_msg_format == "ouster")
+        converter.setFormat(PointCloud2Converter::Format::OUSTER);
     else if (cloud_msg_format == "robosense")
         converter.setFormat(PointCloud2Converter::Format::ROBOSENSE);
     else

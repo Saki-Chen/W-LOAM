@@ -59,6 +59,21 @@ namespace wloam
             : x(x_), y(y_), z(z_), intensity(intensity_), ring(ring_), timestamp(timestamp_) {}
     } EIGEN_ALIGN16;
 
+    struct OusterPoint
+    {
+        PCL_ADD_POINT4D
+        PCL_ADD_INTENSITY
+        uint8_t ring;
+        uint32_t t;
+        uint16_t reflectivity;
+        uint16_t noise;
+        uint32_t range;
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+        OusterPoint() {}
+        OusterPoint(float x_, float y_, float z_, float intensity_, uint8_t ring_, uint32_t t_, uint16_t reflectivity_, uint16_t noise_, uint32_t range_)
+            : x(x_), y(y_), z(z_), intensity(intensity_), ring(ring_), t(t_), reflectivity(reflectivity_), noise(noise_), range(range_) {}
+    } EIGEN_ALIGN16;
+
     using RichPoint = wloam::PointXYZIRT;
     using CloudType = pcl::PointCloud<RichPoint>;
     using VectorType = typename pcl::PointCloud<RichPoint>::VectorType;
@@ -77,5 +92,10 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(wloam::RsPointXYZIRT, (float, x, x)(float, y, 
 POINT_CLOUD_REGISTER_POINT_STRUCT (wloam::PointXYZIRT,
     (float, x, x) (float, y, y) (float, z, z) (float, intensity, intensity)
     (uint16_t, ring, ring) (float, rel_time, time)
+)
 
+POINT_CLOUD_REGISTER_POINT_STRUCT(wloam::OusterPoint, 
+    (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)
+    (uint8_t, ring, ring)(uint32_t, t, t)(uint16_t, reflectivity, reflectivity)
+    (uint16_t, noise, noise)(uint32_t, range, range)
 )

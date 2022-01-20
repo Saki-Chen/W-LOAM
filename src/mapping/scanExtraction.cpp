@@ -83,11 +83,11 @@ public:
         Eigen::Isometry3d T_lidar_velometer;
         tf::poseTFToEigen(P_odometer_lidar, T_ODOMETER_LIDAR);
 
-        SMOOTH_THRESHOLD = private_nh.param<double>("smooth_threshold_deg", 15.0) * M_PI / 180.0;
-        SHARP_THRESHOLD = private_nh.param<double>("sharp_threshold_deg", 45.0) * M_PI / 180.0;
+        SMOOTH_THRESHOLD = private_nh.param<float>("smooth_threshold_deg", 15.0) * M_PI / 180.0;
+        SHARP_THRESHOLD = private_nh.param<float>("sharp_threshold_deg", 45.0) * M_PI / 180.0;
         NEIGHBOR_RADIUS = private_nh.param<int>("neighbor_search_radius", 5);
-        ANGLE_DIFF_THREHOLD = private_nh.param<double>("angle_diff_threshold", 3) * M_PI / 180.0;
-        DISTANCE_DIFF_THRESHOLD = private_nh.param<double>("distance_diff_threshold", 2);
+        ANGLE_DIFF_THREHOLD = private_nh.param<float>("angle_diff_threshold", 3) * M_PI / 180.0;
+        DISTANCE_DIFF_THRESHOLD = private_nh.param<float>("distance_diff_threshold", 2);
         MIN_SEG_LEN = 5;
 
         _pub_feature_flat = nh.advertise<sensor_msgs::PointCloud2>(topic_laser_cloud_flat, 10);
@@ -201,7 +201,7 @@ private:
             t_pn = fixed_stamp + ros::Duration(max_rel_time);
 
             // stamp of last odom must be later than last point
-            while (nh.ok())
+            while (ENABLE_DESKEW && nh.ok())
             {
                 {
                     std::lock_guard<std::mutex> lock_guard(_m_odom_msg_buf);
@@ -271,6 +271,7 @@ private:
             {
                 segment.emplace_back(last_seg_ind, i);
                 last_seg_ind = i;
+                point_info[i].angle_diff = 0;
                 continue;
             }
             point_info[i].angle_diff = _calc_angel(cloud[i-1], cloud[i]);
@@ -344,6 +345,11 @@ private:
             {
                 const float range_diff = point_info[j].range - point_info[j-1].range;
                 const bool over_angle_thres = point_info[j].angle_diff > ANGLE_DIFF_THREHOLD;
+
+                // if(over_angle_thres)
+                // {
+                //     std::cerr << "over angle " << point_info[j].angle_diff / M_PI * 180.0 << "\n" << point_info[j].range << std::endl;           
+                // }
 
                 if (!over_angle_thres && std::abs(range_diff) < DISTANCE_DIFF_THRESHOLD)
                     continue;
