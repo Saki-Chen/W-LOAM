@@ -128,34 +128,16 @@ private:
         ros::NodeHandle nh;
         sensor_msgs::PointCloud2ConstPtr cloud_msg;
         std::vector<PointInfo> point_info;
-        std::deque<CloudExtractInfo::Ptr> recycled;
         ros::Time t0;
         wait_and_pop_with_lock(_odom_msg_buf, _m_odom_msg_buf, ros::Time(0), 100, t0, nh);
         while (nh.ok())
         {
             wait_and_get_with_lock(_cloud_msg_buf, _m_cloud_msg_buf, t0, 100, cloud_msg, nh);
-
-            CloudExtractInfo::Ptr extract_info;
-            if(recycled.size() > 16 && recycled.front().use_count() < 2)
-            {
-                extract_info.swap(recycled.front());
-                recycled.pop_front();
-                extract_info->cloud.clear();
-                extract_info->label.clear();
-                extract_info->segments.clear();
-                // ROS_INFO("use recycled, size %d", recycled.size());
-            }
-            else
-            {
-                extract_info = std::make_shared<CloudExtractInfo>();
-                // ROS_INFO("make new");
-            }
+            CloudExtractInfo::Ptr extract_info = std::make_shared<CloudExtractInfo>();
             extract_info->header = cloud_msg->header;
             pcl::fromROSMsg(*cloud_msg, extract_info->cloud);
             _fill_info(extract_info->cloud, point_info, extract_info->segments);
             _extract_features(point_info, extract_info->segments, extract_info->label);
-            recycled.push_back(extract_info);
-            if(recycled.size() > 32) recycled.pop_front();
             _m_cloud_extract_buf.lock();
             _cloud_extract_buf.push_back(extract_info);
             _m_cloud_extract_buf.unlock();
@@ -258,12 +240,14 @@ private:
         }
     }
 
-    void _fill_info(const CloudType& cloud, std::vector<PointInfo>& point_info, std::vector<std::pair<int, int>>& segment) const
+    void _fill_info( CloudType& cloud, std::vector<PointInfo>& point_info, std::vector<std::pair<int, int>>& segment) const
     {
         const auto size = cloud.size();
         point_info.resize(size);
         segment.clear();
         int last_seg_ind = 0;
+        point_info[0].angle_diff = 0;
+        point_info[0].range = _calc_dist(cloud[0]);
         for(int i = 1; i < size; ++i)
         {
             point_info[i].range = _calc_dist(cloud[i]);
@@ -335,7 +319,7 @@ private:
 
     void _extract_features(const std::vector<PointInfo>& point_info, const std::vector<std::pair<int,int>>& segment, std::vector<char> &label) const
     {
-        static std::vector<std::pair<int, int>> cut_point;
+        std::vector<std::pair<int, int>> cut_point;
         label.resize(point_info.size(), 0);
         for (const auto& seg : segment)
         {
