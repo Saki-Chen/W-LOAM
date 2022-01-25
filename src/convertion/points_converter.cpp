@@ -48,7 +48,16 @@ public:
         if (cloud.empty())
             return;
         if(re_sort)
+        {
             _sort_cloud(cloud);
+
+            if(_format == ROBOSENSE || _format == VELODYNE)
+            {
+                // better to find solution from LiDAR driver
+                _re_calc_point_stamp(cloud);
+                _sort_cloud(cloud);
+            }
+        }
         // _downsample(cloud, 1);
         fixed_stamp = ROS_TIME(msg);
         _fix_timestamp(fixed_stamp, cloud);
@@ -169,6 +178,70 @@ private:
             if(u.ring != v.ring) return u.ring < v.ring;
             return u.rel_time < v.rel_time;
         });
+    }
+
+    void _re_calc_point_stamp(CloudType& cloud) const
+    {
+        float min_t, max_t;
+        size_t first_ind, last_ind;
+
+        first_ind = last_ind = 0;
+        min_t = max_t = cloud[0].rel_time;
+        
+        auto last_i = 0;
+        const auto size = cloud.size();
+
+        for(size_t i = 1; i < size; ++i)
+        {
+            if(cloud[i].ring != cloud[last_i].ring || i == size - 1)
+            {
+                if(i - last_i > 1)
+                {   
+                    // clock-wise
+                    const auto start_angle = -std::atan2(cloud[first_ind].y, cloud[first_ind].x);
+                    auto end_angle = -std::atan2(cloud[last_ind].y, cloud[last_ind].x) + 2 * M_PI;
+                    if(end_angle - start_angle > M_PI * 3) end_angle -= 2 * M_PI;
+                    else if(end_angle - start_angle < M_PI) end_angle += 2 * M_PI;
+                    
+                    auto sec_per_angle = (max_t - min_t) / (end_angle - start_angle);
+                    bool half_passed = false;
+                    for(size_t j = last_i; j < i; ++j)
+                    {
+                        auto angle = -std::atan2(cloud[j].y, cloud[j].x);
+                        if(!half_passed)
+                        {
+                            if(angle < start_angle - 0.5 * M_PI) angle += 2 * M_PI;
+                            else if(angle > start_angle + 1.5 * M_PI) angle -= 2 * M_PI;
+                            if(angle - start_angle > M_PI) half_passed = true;
+                        }
+                        else
+                        {
+                            angle += 2 * M_PI;
+                            if(angle < end_angle - 1.5 * M_PI) angle += 2 * M_PI;
+                            else if(angle > end_angle + 0.5 * M_PI) angle -= 2 * M_PI;
+                        }        
+                        cloud[j].rel_time = min_t + sec_per_angle * (angle - start_angle);
+                    }
+                }
+
+                first_ind = last_ind = i;
+                min_t = max_t = cloud[i].rel_time;
+                last_i = i;
+                continue;
+            }
+
+            const auto& p = cloud[i];
+            if(p.rel_time < min_t)
+            {
+                min_t = p.rel_time;
+                first_ind = i;
+            }
+            if(p.rel_time > max_t)
+            {
+                max_t = p.rel_time;
+                last_ind = i;
+            }
+        }
     }
 
     Format _format = UNKOWN;
