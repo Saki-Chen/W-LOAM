@@ -136,9 +136,7 @@ If you want to test GPS, just add option enable_gps:=true when start launch file
 
 ## Paper
 ```
-WLOAM Wheel-LiDAR Odometry and Mapping for Autonomous Vehicles
-comming soon...
-```
+[WLOAM Wheel-LiDAR Odometry and Mapping for Autonomous Vehicles](https://tjxb.ijournals.cn/jtuns/article/html/2021s1023)
 
 Imu Odometry is adapted from [LIO-SAM](https://github.com/TixiaoShan/LIO-SAM)
 ```
